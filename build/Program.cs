@@ -46,6 +46,13 @@ public class BuildContext : FrostingContext
         new("Unity.Mono", "linux-x86"),
         new("Unity.Mono", "linux-x64"),
         new("Unity.Mono", "macos-x64"),
+        // Apple Silicon: Doorstop v4.5.0 already ships a universal binary
+        // (UnityDoorstop#62, merged 2025-09-08), so Unity.Mono macos-arm64
+        // produces a working distribution against today's prerequisites.
+        // Unity.IL2CPP macos-arm64 is intentionally not added here yet — it
+        // would additionally require BepInEx/Dobby and BepInEx/dotnet-runtime
+        // to ship macos-arm64 native builds.
+        new("Unity.Mono", "macos-arm64"),
         new("Unity.IL2CPP", "win-x86"),
         new("Unity.IL2CPP", "win-x64"),
         new("Unity.IL2CPP", "linux-x64"),
