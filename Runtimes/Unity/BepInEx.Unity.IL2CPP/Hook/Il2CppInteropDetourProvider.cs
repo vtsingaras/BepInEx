@@ -31,4 +31,7 @@ internal class Il2CppInteropDetour : IDetour
     public nint Target => detour.Source;
     public nint Detour => detour.Target;
     public nint OriginalTrampoline => detour.OrigEntrypoint;
+
+    public T GenerateTrampoline<T>() where T : Delegate
+        => (T) Marshal.GetDelegateForFunctionPointer(detour.OrigEntrypoint, typeof(T));
 }
