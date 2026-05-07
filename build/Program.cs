@@ -50,6 +50,23 @@ public class BuildContext : FrostingContext
         new("Unity.IL2CPP", "win-x64"),
         new("Unity.IL2CPP", "linux-x64"),
         new("Unity.IL2CPP", "macos-x64"),
+        // Apple Silicon: produces a working macos-arm64 distribution against
+        // matching native dependencies. The pipeline copies
+        // `dobby_macos/libdobby_arm64.dylib` (per MakeDistTask) and the
+        // `dotnet/macos-arm64/` directory from the mini-coreclr zip; both
+        // need to exist in the corresponding releases. Doorstop already
+        // ships a universal binary in `doorstop_macos/universal/` from
+        // v4.5.0 (UnityDoorstop#62) and is reused for both arches without
+        // further changes.
+        //
+        // Prerequisites for this entry to land green in CI:
+        //   * BepInEx/Dobby release with libdobby_arm64.dylib in
+        //     dobby-macos.zip (BepInEx/Dobby#TBD adds the CI step).
+        //   * BepInEx/dotnet-runtime release whose mini-coreclr-Release.zip
+        //     contains a macos-arm64/ directory with a stripped CoreCLR
+        //     for that rid.
+        // Ship those two and this line becomes the trivial last hop.
+        new("Unity.IL2CPP", "macos-arm64"),
         new("NET.Framework", "win-x86", "net40"),
         new("NET.Framework", "win-x86", "net452"),
         new("NET.CoreCLR", "win-x64", "netcoreapp3.1"),
