@@ -43,6 +43,10 @@ internal static partial class Il2CppInteropManager
     {
         InstructionSetRegistry.RegisterInstructionSet<X86InstructionSet>(DefaultInstructionSets.X86_32);
         InstructionSetRegistry.RegisterInstructionSet<X86InstructionSet>(DefaultInstructionSets.X86_64);
+        // Apple Silicon, Android, Switch — required so Cpp2IL can build the
+        // ApplicationAnalysisContext on arm64-only IL2CPP binaries.
+        InstructionSetRegistry.RegisterInstructionSet<Arm64InstructionSet>(DefaultInstructionSets.ARM_V8);
+        InstructionSetRegistry.RegisterInstructionSet<ArmV7InstructionSet>(DefaultInstructionSets.ARM_V7);
         LibCpp2IlBinaryRegistry.RegisterBuiltInBinarySupport();
     }
 

@@ -63,6 +63,13 @@ public static class Preloader
 
             NativeLibrary.SetDllImportResolver(typeof(Il2CppInterop.Runtime.IL2CPP).Assembly, DllImportResolver);
 
+            // Route P/Invoke("dobby") to BepInEx/core/libdobby.{so,dylib,dll}.
+            // The default dlopen() search path doesn't include BepInEx/core (Dobby
+            // sits next to the managed core assemblies, not next to the player
+            // binary), and on macOS arch -e drops DYLD_LIBRARY_PATH from the
+            // launch script's exec.
+            NativeLibrary.SetDllImportResolver(typeof(BepInEx.Unity.IL2CPP.Hook.Dobby.DobbyDetour).Assembly, BepInExDllImportResolver);
+
             Il2CppInteropManager.Initialize();
 
             using (var assemblyPatcher = new AssemblyPatcher((data, _) => Assembly.Load(data)))
@@ -101,6 +108,23 @@ public static class Preloader
             return NativeLibrary.Load(Il2CppInteropManager.GameAssemblyPath, assembly, searchPath);
         }
 
+        return IntPtr.Zero;
+    }
+
+    private static IntPtr BepInExDllImportResolver(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
+    {
+        if (libraryName == "dobby")
+        {
+            string ext = PlatformDetection.OS.Is(OSKind.Windows) ? ".dll"
+                       : PlatformDetection.OS.Is(OSKind.OSX) ? ".dylib"
+                       : ".so";
+            string prefix = PlatformDetection.OS.Is(OSKind.Windows) ? "" : "lib";
+            string candidate = System.IO.Path.Combine(Paths.BepInExRootPath, "core", $"{prefix}dobby{ext}");
+            if (System.IO.File.Exists(candidate) && NativeLibrary.TryLoad(candidate, out IntPtr handle))
+            {
+                return handle;
+            }
+        }
         return IntPtr.Zero;
     }
 }

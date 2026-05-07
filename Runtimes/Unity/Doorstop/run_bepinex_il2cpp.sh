@@ -326,8 +326,13 @@ if [ -n "${is_apple_silicon}" ]; then
     # We need to use arch for Apple Silicon to allow the executable to be run natively as otherwise if
     # the executable is universal, supporting both x86_64 and arm64, MacOs will still run it as x86_64
     # if the parent process is running as x86.
-    # arch also strips the DYLD_INSERT_LIBRARIES env var so we have to pass that in manually
-    exec arch -e DYLD_INSERT_LIBRARIES="${DYLD_INSERT_LIBRARIES}" "$executable_path" "$@"
+    # arch also strips DYLD_* env vars; forward each one we set above so dyld
+    # can still find libdoorstop / libcoreclr / libdobby once the player runs.
+    exec arch \
+        -e DYLD_INSERT_LIBRARIES="${DYLD_INSERT_LIBRARIES}" \
+        -e DYLD_LIBRARY_PATH="${DYLD_LIBRARY_PATH}" \
+        -e DYLD_FALLBACK_LIBRARY_PATH="${DYLD_FALLBACK_LIBRARY_PATH}" \
+        "$executable_path" "$@"
 else
     exec "$executable_path" "$@"
 fi
