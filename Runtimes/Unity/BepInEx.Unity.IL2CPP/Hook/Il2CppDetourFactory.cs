@@ -42,4 +42,10 @@ internal class Il2CppDetourFactory : IDetourFactory
     private static ICoreNativeDetour CreateDefault(nint original, nint target) =>
         // TODO: check and provide an OS accurate provider
         new DobbyDetour(original, target);
+
+    // Required by MonoMod.Core source HEAD (post-1.3.4 NuGet); the property
+    // gates whether the factory exposes ICoreNativeDetour.OrigEntrypoint via
+    // the DetourFactory facade. The DobbyDetour / FunchookDetour wrappers
+    // both populate OrigEntrypoint after Apply, so report true.
+    bool IDetourFactory.SupportsNativeDetourOrigEntrypoint => true;
 }

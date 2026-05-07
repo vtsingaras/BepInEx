@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using Il2CppInterop.Runtime.Injection;
 using MonoMod.Core;
 using MonoMod.RuntimeDetour;
+using IDetour = Il2CppInterop.Runtime.Injection.IDetour;
 
 namespace BepInEx.Unity.IL2CPP.Hook;
 
