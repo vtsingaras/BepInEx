@@ -120,9 +120,14 @@ public static class Preloader
                        : ".so";
             string prefix = PlatformDetection.OS.Is(OSKind.Windows) ? "" : "lib";
             string candidate = System.IO.Path.Combine(Paths.BepInExRootPath, "core", $"{prefix}dobby{ext}");
-            if (System.IO.File.Exists(candidate) && NativeLibrary.TryLoad(candidate, out IntPtr handle))
+            Log.LogDebug($"[BepInExDllImportResolver] dobby -> {candidate} (exists={System.IO.File.Exists(candidate)})");
+            if (System.IO.File.Exists(candidate))
             {
-                return handle;
+                if (NativeLibrary.TryLoad(candidate, out IntPtr handle))
+                {
+                    return handle;
+                }
+                Log.LogWarning($"[BepInExDllImportResolver] NativeLibrary.TryLoad('{candidate}') failed");
             }
         }
         return IntPtr.Zero;
