@@ -66,8 +66,59 @@ public class IL2CPPChainloader : BaseChainloader<BasePlugin>
         var runtimeInvokePtr = NativeLibrary.GetExport(il2CppHandle, "il2cpp_runtime_invoke");
         PreloaderLogger.Log.Log(LogLevel.Debug, $"Runtime invoke pointer: 0x{runtimeInvokePtr.ToInt64():X}");
 
+        // On arm64 macOS / iOS, IL2CPP exports `il2cpp_runtime_invoke` (and its
+        // siblings) as a 4-byte thunk: a single unconditional `b <impl>` jump
+        // sitting in a dense jump-table where each consecutive 4-byte slot is a
+        // *different* thunk. A near-branch detour patch needs 8–16 bytes (the
+        // hook target is in CoreCLR JIT memory, well outside arm64's ±128 MB
+        // near-branch range, so we end up with an LDR-literal + BR pair plus
+        // an embedded 64-bit address). Patching 8–16 bytes at the thunk would
+        // clobber the next thunks in the table — observed as SIGBUS later when
+        // some other il2cpp_runtime_* call lands mid-sequence and executes
+        // garbage. Detect the thunk shape and follow the branch to the real
+        // implementation, where there's a normal function prologue with room
+        // for the patch.
+        runtimeInvokePtr = DereferenceArm64BranchThunk(runtimeInvokePtr);
+
         RuntimeInvokeDetour = new NativeHook(runtimeInvokePtr, OnInvokeMethod);
         PreloaderLogger.Log.Log(LogLevel.Debug, "Runtime invoke patched");
+    }
+
+    /// <summary>
+    /// On arm64 the il2cpp public API symbols are typically 4-byte branch thunks
+    /// into the actual implementation. Detour engines that need more than 4 bytes
+    /// of patching budget will overwrite adjacent thunks. If <paramref name="ptr"/>
+    /// points at a single arm64 unconditional-branch instruction, return its
+    /// computed target; otherwise return <paramref name="ptr"/> unchanged.
+    /// </summary>
+    private static IntPtr DereferenceArm64BranchThunk(IntPtr ptr)
+    {
+        if (RuntimeInformation.ProcessArchitecture != Architecture.Arm64)
+            return ptr;
+
+        if (ptr == IntPtr.Zero)
+            return ptr;
+
+        unsafe
+        {
+            var instr = *(uint*) ptr;
+            // arm64 unconditional branch:  b <imm26>     opcode bits 31..26 == 0b000101
+            //                              bl <imm26>   would also match 0b100101 — exclude.
+            const uint UnconditionalBranchMask = 0xFC000000u; // top 6 bits
+            const uint UnconditionalBranchValue = 0x14000000u; // 0b000101 << 26
+            if ((instr & UnconditionalBranchMask) != UnconditionalBranchValue)
+                return ptr;
+
+            // imm26 is signed, in 4-byte units, encoded in the low 26 bits.
+            int imm26 = (int) (instr & 0x03FFFFFFu);
+            if ((imm26 & (1 << 25)) != 0) // sign-extend 26 -> 32
+                imm26 |= unchecked((int) 0xFC000000u);
+            long offset = (long) imm26 << 2; // multiply by 4 (instr stride)
+            var target = new IntPtr(ptr.ToInt64() + offset);
+            PreloaderLogger.Log.Log(LogLevel.Debug,
+                $"Runtime invoke thunk dereferenced: 0x{ptr.ToInt64():X} -> 0x{target.ToInt64():X}");
+            return target;
+        }
     }
 
     private static IntPtr OnInvokeMethod(RuntimeInvokeDetourDelegate original, IntPtr method, IntPtr obj, IntPtr parameters, IntPtr exc)
